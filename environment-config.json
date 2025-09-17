@@ -1,0 +1,45 @@
+{
+  "family": "noise-reduction-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::528104389666:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "noise-reduction",
+      "image": "528104389666.dkr.ecr.ap-southeast-1.amazonaws.com/noise-reduction:latest",
+      "portMappings": [
+        {
+          "containerPort": 8003,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "ap-southeast-1"
+        },
+        {
+          "name": "CORRELATION_API_URL",
+          "value": "http://ingestion-correlation-alb-318555208.ap-southeast-1.elb.amazonaws.com"
+        },
+        {
+          "name": "ENVIRONMENT",
+          "value": "development"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/noise-reduction",
+          "awslogs-region": "ap-southeast-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
