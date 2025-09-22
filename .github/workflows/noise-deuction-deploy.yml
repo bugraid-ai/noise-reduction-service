@@ -1,0 +1,63 @@
+name: "Deploy Noise Reduction Service"
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+
+env:
+  AWS_REGION: ap-southeast-1  
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set environment
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            echo "ECR_REPO=${{ secrets.ECR_PROD_NOISE_REDUCTION }}" >> $GITHUB_ENV
+            echo "ECS_CLUSTER=${{ secrets.ECS_CLUSTER_PROD }}" >> $GITHUB_ENV
+            echo "ECS_SERVICE=${{ secrets.ECS_SERVICE_NOISE_REDUCTION_PROD }}" >> $GITHUB_ENV
+          else
+            echo "ECR_REPO=${{ secrets.ECR_DEV_NOISE_REDUCTION }}" >> $GITHUB_ENV
+            echo "ECS_CLUSTER=${{ secrets.ECS_CLUSTER_DEV }}" >> $GITHUB_ENV
+            echo "ECS_SERVICE=${{ secrets.ECS_SERVICE_NOISE_REDUCTION_DEV }}" >> $GITHUB_ENV
+          fi
+
+      - name: Build, tag, and push Docker image
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          docker build -t $ECR_REPO:$IMAGE_TAG .
+          docker push $ECR_REPO:$IMAGE_TAG
+          echo "IMAGE=$ECR_REPO:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Render ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: noise-reduction
+          image: ${{ env.IMAGE }}
+
+      - name: Deploy ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true

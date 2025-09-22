@@ -8,3 +8,7 @@ numpy==1.24.3
 langgraph==0.0.40
 langchain-core==0.1.46
 typing-extensions==4.8.0
+
+
+# Testing
+pytest==8.0.0
